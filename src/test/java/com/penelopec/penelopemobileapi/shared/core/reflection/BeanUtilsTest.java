@@ -14,6 +14,10 @@ class BeanUtilsTest {
 
   static class BaseEntity {
     private String id;
+
+    String getId() {
+      return id;
+    }
   }
 
   static class User extends BaseEntity {
@@ -60,6 +64,8 @@ class BeanUtilsTest {
       clearFieldCache();
       User user = new User("Bob");
       BeanUtils.writeProperty(user, "id", "UUID-123");
+
+      assertThat(user.getId()).isEqualTo("UUID-123");
 
       BeanUtils.readProperty(user, "id");
       int cacheSizeAfterFirstRead = fieldCache().size();

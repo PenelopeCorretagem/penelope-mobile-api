@@ -55,7 +55,7 @@ public final class HeapMonitor {
       if (name.contains("old") || name.contains("tenured")) {
         MemoryUsage usage = pool.getUsage();
         double max = usage.getMax() > 0 ? usage.getMax() : usage.getCommitted();
-        return Optional.of((double) usage.getUsed() / max);
+        return Optional.of(usage.getUsed() / max);
       }
     }
     return Optional.empty();
@@ -91,9 +91,7 @@ public final class HeapMonitor {
     dump.add("Total de threads ativas: " + threadStacks.size());
     dump.add("");
 
-    threadStacks.forEach((thread, stackTrace) -> {
-      dump.add(formatThreadInfo(thread, stackTrace));
-    });
+    threadStacks.forEach((thread, stackTrace) -> dump.add(formatThreadInfo(thread, stackTrace)));
 
     return dump.toString();
   }
@@ -104,7 +102,7 @@ public final class HeapMonitor {
     threadInfo.add("---");
     threadInfo.add(String.format(
       "Thread: \"%s\" (ID: %d, State: %s, Priority: %d)",
-      thread.getName(), thread.getId(), thread.getState(), thread.getPriority()
+      thread.getName(), thread.threadId(), thread.getState(), thread.getPriority()
     ));
 
     if (thread.isDaemon()) {

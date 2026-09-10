@@ -8,7 +8,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 @DisplayName("Filters")
 class FiltersTest {
@@ -23,9 +23,12 @@ class FiltersTest {
       Constructor<Filters> constructor = Filters.class.getDeclaredConstructor();
       constructor.setAccessible(true); // Quebra o encapsulamento private para o teste
 
-      assertThatThrownBy(constructor::newInstance)
-        .isInstanceOf(InvocationTargetException.class)
-        .getCause()
+      InvocationTargetException exception = catchThrowableOfType(
+        constructor::newInstance,
+        InvocationTargetException.class
+      );
+
+      assertThat(exception.getCause())
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining("Classe utilitária não pode ser instanciada.");
     }
