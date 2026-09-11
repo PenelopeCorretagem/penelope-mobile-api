@@ -22,4 +22,6 @@ public interface SpringAdvertisementRepository extends JpaRepository<Advertiseme
 
   @EntityGraph(attributePaths = {"estate", "estate.address", "estate.media", "estate.media.type", "estate.amenities"})
   Optional<AdvertisementJpaEntity> findByIdAndActiveTrue(Long id);
+
+  boolean existsByIdAndActiveTrue(Long id);
 }
