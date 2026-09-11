@@ -6,6 +6,8 @@ public enum AuthErrorCode implements ErrorCode {
   INVALID_CREDENTIALS("AUTH_401", "Usuário ou senha inválidos."),
   INVALID_TOKEN("AUTH_400", "Token inválido ou não encontrado."),
   EXPIRED_RESET_TOKEN("AUTH_400", "Token expirado. Solicite um novo código."),
+  USER_NOT_FOUND("AUTH_404", "Usuário autenticado não encontrado."),
+  EMAIL_ALREADY_IN_USE("AUTH_400", "O e-mail informado já está em uso."),
   TOKEN_CONFIGURATION("AUTH_500", "A configuração de autenticação está indisponível.");
 
   private final String code;

@@ -30,7 +30,9 @@ public class JpaUserRepository implements UserRepository {
   private User toDomain(UserJpaEntity entity) {
     return User.restore(
       entity.getId(),
+      entity.getName(),
       entity.getEmail(),
+      entity.getBirthDate(),
       entity.getPassword(),
       entity.getAccessLevel(),
       entity.getPasswordResetToken(),
@@ -41,7 +43,9 @@ public class JpaUserRepository implements UserRepository {
   private UserJpaEntity toEntity(User user) {
     UserJpaEntity entity = new UserJpaEntity();
     entity.setId(user.getId());
+    entity.setName(user.getName());
     entity.setEmail(user.getEmail());
+    entity.setBirthDate(user.getBirthDate());
     entity.setPassword(user.getPassword());
     entity.setAccessLevel(user.getAccessLevel());
     entity.setPasswordResetToken(user.getPasswordResetToken());

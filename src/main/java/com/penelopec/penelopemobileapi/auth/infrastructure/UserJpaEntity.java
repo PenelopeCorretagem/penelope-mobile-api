@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "usuario")
@@ -25,6 +26,9 @@ public class UserJpaEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(name = "nome", nullable = false)
+  private String name;
+
   @Column(name = "email", nullable = false, unique = true)
   private String email;
 
@@ -34,6 +38,9 @@ public class UserJpaEntity {
   @Enumerated(EnumType.STRING)
   @Column(name = "nivel_acesso")
   private AccessLevel accessLevel;
+
+  @Column(name = "data_nascimento")
+  private LocalDate birthDate;
 
   @Column(name = "token_redefinicao_senha")
   private String passwordResetToken;
