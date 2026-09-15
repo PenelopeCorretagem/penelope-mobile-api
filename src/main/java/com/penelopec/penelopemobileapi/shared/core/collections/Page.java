@@ -75,7 +75,7 @@ public record Page<T>(
       .filter(predicate)
       .toList();
 
-    long removedElementsCount = content.size() - filteredContent.size();
+    long removedElementsCount = (long) content.size() - filteredContent.size();
 
     // Recalcula o total apenas se for a página inicial
     long newTotalElements = (pageNumber == 0)
@@ -103,7 +103,7 @@ public record Page<T>(
       .filter(filter::matches)
       .toList();
 
-    long removedElementsCount = content.size() - filteredContent.size();
+    long removedElementsCount = (long) content.size() - filteredContent.size();
 
     long newTotalElements = (pageNumber == 0)
       ? Math.max(0, totalElements - removedElementsCount)

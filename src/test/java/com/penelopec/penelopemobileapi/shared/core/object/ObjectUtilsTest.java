@@ -47,12 +47,10 @@ class ObjectUtilsTest {
   class RequireImmutable {
 
     static class ImmutableClass {
-      private final String id = "1";
       public final int value = 100;
     }
 
     static class NonImmutableClass {
-      private final String id = "1";
       private int value; // Infrator
     }
 

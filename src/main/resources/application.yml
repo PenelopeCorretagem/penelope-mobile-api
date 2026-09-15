@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: penelope-mobile-api
+  profiles:
+    default: dev
+
+server:
+  servlet:
+    context-path: /api
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081}
+  security:
+    token:
+      secret: ${JWT_API_KEY:}
+    public-paths:
+      - /error
+      - /actuator/health
+      - /actuator/info
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /v1/auth/**
+  frontend:
+    url: ${APP_FRONTEND_URL:http://localhost:3000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level requestId=%X{requestId:-} %logger{36} - %msg%n"
