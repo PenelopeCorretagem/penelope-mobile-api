@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 public record AdvertisementResponse(
   Long id,
   BigDecimal price,
@@ -13,6 +15,7 @@ public record AdvertisementResponse(
   EstateResponse estate
 ) {
   public record EstateResponse(
+    Long id,
     String title,
     String description,
     Double area,
@@ -20,11 +23,22 @@ public record AdvertisementResponse(
     String type,
     AddressResponse address,
     Set<MediaResponse> images,
-    Set<AmenityResponse> amenities
+    Set<AmenityResponse> amenities,
+    @JsonInclude(JsonInclude.Include.NON_NULL) EducationBadgeResponse educationBadge
   ) {
   }
 
-  public record AddressResponse(String city, String region, String uf, Double latitude, Double longitude) {
+  public record AddressResponse(
+    String city,
+    String region,
+    String uf,
+    String municipalityIbgeCode,
+    Double latitude,
+    Double longitude,
+    String coordinateSource,
+    String coordinatePrecision,
+    LocalDateTime coordinateUpdatedAt
+  ) {
   }
 
   public record MediaResponse(Long id, String url, String type) {

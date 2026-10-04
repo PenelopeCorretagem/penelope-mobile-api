@@ -9,6 +9,12 @@ server:
     context-path: /api
 
 app:
+  badges:
+    enabled: ${BADGES_ENABLED:false}
+    datasource:
+      url: ${BADGES_DB_URL:}
+      username: ${BADGES_DB_USER:}
+      password: ${BADGES_DB_PASSWORD:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081}
   security:

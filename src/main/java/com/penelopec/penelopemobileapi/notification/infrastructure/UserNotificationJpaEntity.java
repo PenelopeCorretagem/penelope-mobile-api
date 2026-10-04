@@ -1,5 +1,6 @@
 package com.penelopec.penelopemobileapi.notification.infrastructure;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -26,12 +27,16 @@ public class UserNotificationJpaEntity {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  @Column(name = "usuario_id", nullable = false)
   private Long userId;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "notificacao_id", nullable = false)
   private NotificationJpaEntity notification;
 
+  @Column(name = "lida_em")
   private Instant readAt;
+
+  @Column(name = "excluida_em")
   private Instant deletedAt;
 }

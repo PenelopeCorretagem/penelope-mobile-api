@@ -22,3 +22,17 @@ O pacote `com.penelopec.penelopemobileapi.shared.core` representa o espaço para
 ```bash
 mvn verify
 ```
+
+## Insígnia de educação
+
+O detalhe `GET /api/v1/advertisements/{id}` pode incluir
+`estate.educationBadge`, calculado pelo projeto `penelope-data-intelligence`
+para `empreendimento.id`. A API consulta o banco analítico em modo somente
+leitura; a listagem de anúncios não consulta insígnias.
+
+Configure `BADGES_ENABLED=true`, `BADGES_DB_URL`, `BADGES_DB_USER` e
+`BADGES_DB_PASSWORD`. No MySQL local do projeto Python, a URL para a API
+executada no host é `jdbc:mysql://localhost:3307/penelope_etl`. Com a
+integração desligada, o campo é omitido. A documentação completa da carga,
+regra, estados e validação está em
+`../penelope-data-intelligence/docs/fluxo-completo-insignia-educacao.md`.
