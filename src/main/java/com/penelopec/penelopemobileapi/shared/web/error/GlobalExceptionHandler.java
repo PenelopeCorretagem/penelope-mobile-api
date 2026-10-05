@@ -9,10 +9,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -46,6 +48,24 @@ public class GlobalExceptionHandler {
 
     return ResponseEntity.badRequest()
       .body(ApiErrorResponse.validation(request.getRequestURI(), violations));
+  }
+
+  @ExceptionHandler(ResponseStatusException.class)
+  public ResponseEntity<ApiErrorResponse> handleResponseStatusException(
+    ResponseStatusException exception,
+    HttpServletRequest request) {
+    HttpStatusCode status = exception.getStatusCode();
+    String message = exception.getReason() == null
+      ? status.toString()
+      : exception.getReason();
+
+    return ResponseEntity.status(status)
+      .body(ApiErrorResponse.of(
+        status.value(),
+        "HTTP_" + status.value(),
+        message,
+        request.getRequestURI()
+      ));
   }
 
   @ExceptionHandler(Exception.class)
