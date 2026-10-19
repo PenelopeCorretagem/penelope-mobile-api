@@ -3,6 +3,7 @@ package com.penelopec.penelopemobileapi.catalog.application;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -24,7 +25,8 @@ public record AdvertisementResponse(
     AddressResponse address,
     Set<MediaResponse> images,
     Set<AmenityResponse> amenities,
-    @JsonInclude(JsonInclude.Include.NON_NULL) EducationBadgeResponse educationBadge
+    @JsonInclude(JsonInclude.Include.NON_NULL) EducationBadgeResponse educationBadge,
+    @JsonInclude(JsonInclude.Include.NON_EMPTY) List<HealthBadgeResponse> healthBadges
   ) {
   }
 

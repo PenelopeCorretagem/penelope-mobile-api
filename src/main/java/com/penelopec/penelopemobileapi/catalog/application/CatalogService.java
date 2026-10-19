@@ -26,11 +26,12 @@ public class CatalogService {
 
   private final SpringAdvertisementRepository advertisements;
   private final EducationBadgeReader educationBadges;
+  private final HealthBadgeReader healthBadges;
 
   @Transactional(readOnly = true)
   public List<AdvertisementResponse> findAll(EstateType type, boolean active) {
     return advertisements.findCatalog(active, type).stream()
-      .map(advertisement -> toResponse(advertisement, null))
+      .map(advertisement -> toResponse(advertisement, null, List.of()))
       .toList();
   }
 
@@ -45,11 +46,22 @@ public class CatalogService {
       LOGGER.warn("Falha ao consultar a insígnia de educação da unidade {}", advertisement.getEstate().getId(), error);
       educationBadge = EducationBadgeResponse.unavailable();
     }
-    return toResponse(advertisement, educationBadge);
+    List<HealthBadgeResponse> healthBadgeResults;
+    try {
+      healthBadgeResults = healthBadges.findHealthByEstateId(advertisement.getEstate().getId());
+    } catch (DataAccessException error) {
+      LOGGER.warn("Falha ao consultar as insígnias de saúde da unidade {}", advertisement.getEstate().getId(), error);
+      healthBadgeResults = List.of(
+        HealthBadgeResponse.unavailable("HEALTH_PRIMARY_CARE"),
+        HealthBadgeResponse.unavailable("HEALTH_GENERAL_HOSPITAL")
+      );
+    }
+    return toResponse(advertisement, educationBadge, healthBadgeResults);
   }
 
   private AdvertisementResponse toResponse(
-    AdvertisementJpaEntity advertisement, EducationBadgeResponse educationBadge) {
+    AdvertisementJpaEntity advertisement, EducationBadgeResponse educationBadge,
+    List<HealthBadgeResponse> healthBadgeResults) {
     EstateJpaEntity estate = advertisement.getEstate();
     return new AdvertisementResponse(
       advertisement.getId(),
@@ -77,7 +89,8 @@ public class CatalogService {
         ),
         toMediaResponses(estate.getMedia()),
         toAmenityResponses(estate.getAmenities()),
-        educationBadge
+        educationBadge,
+        healthBadgeResults
       )
     );
   }

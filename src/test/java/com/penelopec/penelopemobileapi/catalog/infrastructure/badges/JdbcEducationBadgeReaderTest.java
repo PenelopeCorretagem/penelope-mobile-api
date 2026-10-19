@@ -2,12 +2,14 @@ package com.penelopec.penelopemobileapi.catalog.infrastructure.badges;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.penelopec.penelopemobileapi.catalog.application.EducationBadgeResponse;
+import com.penelopec.penelopemobileapi.catalog.application.HealthBadgeResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -67,5 +69,30 @@ class JdbcEducationBadgeReaderTest {
     assertThat(result.score()).isNull();
     assertThat(result.schoolsWithinRadius()).isNull();
     assertThat(result.granted()).isFalse();
+  }
+
+  @Test
+  void readsTwoIndependentHealthBadgesAndMissingMetric() {
+    jdbc.update("""
+      INSERT INTO property_badge_score VALUES
+      (42, 'HEALTH_PRIMARY_CARE', NULL, TRUE, 'CALCULATED', 1500,
+       'health-proximity-v2', 9,
+       '{"facility_count_within_radius":2,"nearest_meters":375.47,'
+       || '"distance_method":"STRAIGHT_LINE_HAVERSINE","source":"CNES_ESTABLISHMENTS",'
+       || '"source_reference_period":"2026-09","source_reference_origin":"USER_DECLARED",'
+       || '"source_loaded_at":"2026-10-06T09:00:00"}',
+       TIMESTAMP '2026-10-06 10:00:00')
+      """);
+
+    List<HealthBadgeResponse> results = reader.findHealthByEstateId(42L);
+    assertThat(results).hasSize(2);
+    assertThat(results.getFirst().type()).isEqualTo("HEALTH_PRIMARY_CARE");
+    assertThat(results.getFirst().status()).isEqualTo("CALCULATED");
+    assertThat(results.getFirst().granted()).isTrue();
+    assertThat(results.getFirst().facilitiesWithinRadius()).isEqualTo(2);
+    assertThat(results.getFirst().nearestMeters()).isEqualByComparingTo("375.47");
+    assertThat(results.getFirst().sourceReferencePeriod()).isEqualTo("2026-09");
+    assertThat(results.getLast().type()).isEqualTo("HEALTH_GENERAL_HOSPITAL");
+    assertThat(results.getLast().status()).isEqualTo("NOT_CALCULATED");
   }
 }

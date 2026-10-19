@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.penelopec.penelopemobileapi.catalog.application.EducationBadgeReader;
 import com.penelopec.penelopemobileapi.catalog.application.EducationBadgeResponse;
+import com.penelopec.penelopemobileapi.catalog.application.HealthBadgeReader;
+import com.penelopec.penelopemobileapi.catalog.application.HealthBadgeResponse;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,12 +21,20 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 
-public class JdbcEducationBadgeReader implements EducationBadgeReader, AutoCloseable {
+public class JdbcEducationBadgeReader implements EducationBadgeReader, HealthBadgeReader, AutoCloseable {
+  private static final String PRIMARY_CARE = "HEALTH_PRIMARY_CARE";
+  private static final String GENERAL_HOSPITAL = "HEALTH_GENERAL_HOSPITAL";
   private static final String FIND_SCORE = """
     SELECT score, granted, calculation_status, radius_meters, rule_version,
            source_run_id, evidence, calculated_at
     FROM property_badge_score
     WHERE property_id = ? AND badge_type = 'EDUCATION'
+    """;
+  private static final String FIND_HEALTH = """
+    SELECT badge_type, granted, calculation_status, radius_meters, rule_version,
+           source_run_id, evidence, calculated_at
+    FROM property_badge_score
+    WHERE property_id = ? AND badge_type IN ('HEALTH_PRIMARY_CARE', 'HEALTH_GENERAL_HOSPITAL')
     """;
 
   private final DataSource dataSource;
@@ -41,6 +51,37 @@ public class JdbcEducationBadgeReader implements EducationBadgeReader, AutoClose
   public Optional<EducationBadgeResponse> findByEstateId(Long estateId) {
     List<EducationBadgeResponse> results = jdbc.query(FIND_SCORE, this::toResponse, estateId);
     return Optional.of(results.isEmpty() ? EducationBadgeResponse.notCalculated() : results.getFirst());
+  }
+
+  @Override
+  public List<HealthBadgeResponse> findHealthByEstateId(Long estateId) {
+    List<HealthBadgeResponse> results = jdbc.query(FIND_HEALTH, this::toHealthResponse, estateId);
+    return List.of(
+      results.stream().filter(item -> PRIMARY_CARE.equals(item.type())).findFirst()
+        .orElseGet(() -> HealthBadgeResponse.notCalculated(PRIMARY_CARE)),
+      results.stream().filter(item -> GENERAL_HOSPITAL.equals(item.type())).findFirst()
+        .orElseGet(() -> HealthBadgeResponse.notCalculated(GENERAL_HOSPITAL))
+    );
+  }
+
+  private HealthBadgeResponse toHealthResponse(ResultSet row, int rowNumber) throws SQLException {
+    JsonNode evidence = parseEvidence(row.getString("evidence"));
+    return new HealthBadgeResponse(
+      row.getString("badge_type"),
+      row.getString("calculation_status"),
+      row.getBoolean("granted"),
+      row.getInt("radius_meters"),
+      integer(evidence, "facility_count_within_radius"),
+      decimal(evidence, "nearest_meters"),
+      string(evidence, "distance_method"),
+      row.getString("rule_version"),
+      string(evidence, "source"),
+      row.getObject("source_run_id", Long.class),
+      string(evidence, "source_reference_period"),
+      string(evidence, "source_reference_origin"),
+      dateTime(evidence, "source_loaded_at"),
+      timestamp(row.getTimestamp("calculated_at"))
+    );
   }
 
   private EducationBadgeResponse toResponse(ResultSet row, int rowNumber) throws SQLException {
@@ -65,7 +106,7 @@ public class JdbcEducationBadgeReader implements EducationBadgeReader, AutoClose
     try {
       return json.readTree(value);
     } catch (JsonProcessingException error) {
-      throw new DataRetrievalFailureException("Evidência da insígnia de educação inválida", error);
+      throw new DataRetrievalFailureException("Evidência da insígnia inválida", error);
     }
   }
 
@@ -92,7 +133,7 @@ public class JdbcEducationBadgeReader implements EducationBadgeReader, AutoClose
     try {
       return LocalDateTime.parse(value);
     } catch (DateTimeParseException error) {
-      throw new DataRetrievalFailureException("Data da fonte da insígnia de educação inválida", error);
+      throw new DataRetrievalFailureException("Data da fonte da insígnia inválida", error);
     }
   }
 

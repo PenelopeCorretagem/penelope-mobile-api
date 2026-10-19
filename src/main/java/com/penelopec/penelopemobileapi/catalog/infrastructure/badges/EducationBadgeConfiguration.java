@@ -2,6 +2,7 @@ package com.penelopec.penelopemobileapi.catalog.infrastructure.badges;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.penelopec.penelopemobileapi.catalog.application.EducationBadgeReader;
+import com.penelopec.penelopemobileapi.catalog.application.HealthBadgeReader;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.Optional;
+import java.util.List;
 
 @Configuration
 public class EducationBadgeConfiguration {
@@ -41,5 +43,11 @@ public class EducationBadgeConfiguration {
   @ConditionalOnProperty(prefix = "app.badges", name = "enabled", havingValue = "false", matchIfMissing = true)
   EducationBadgeReader disabledEducationBadgeReader() {
     return estateId -> Optional.empty();
+  }
+
+  @Bean
+  @ConditionalOnProperty(prefix = "app.badges", name = "enabled", havingValue = "false", matchIfMissing = true)
+  HealthBadgeReader disabledHealthBadgeReader() {
+    return estateId -> List.of();
   }
 }

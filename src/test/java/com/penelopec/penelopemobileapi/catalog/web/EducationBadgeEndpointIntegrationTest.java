@@ -50,6 +50,23 @@ class EducationBadgeEndpointIntegrationTest {
        || '"school_source":"INEP_SCHOOLS","school_source_loaded_at":"2026-10-02T09:00:00"}',
        TIMESTAMP '2026-10-02 10:00:00')
       """);
+    badges.update("""
+      INSERT INTO property_badge_score VALUES
+      (900000000101, 'HEALTH_PRIMARY_CARE', NULL, TRUE, 'CALCULATED', 1500,
+       'health-proximity-v2', 2,
+       '{"facility_count_within_radius":1,"nearest_meters":375.47,'
+       || '"distance_method":"STRAIGHT_LINE_HAVERSINE","source":"CNES_ESTABLISHMENTS",'
+       || '"source_reference_period":"2026-09","source_reference_origin":"USER_DECLARED",'
+       || '"source_loaded_at":"2026-10-06T09:00:00"}',
+       TIMESTAMP '2026-10-06 10:00:00'),
+      (900000000101, 'HEALTH_GENERAL_HOSPITAL', NULL, FALSE, 'CALCULATED', 5000,
+       'health-proximity-v2', 2,
+       '{"facility_count_within_radius":0,"nearest_meters":null,'
+       || '"distance_method":"STRAIGHT_LINE_HAVERSINE","source":"CNES_ESTABLISHMENTS",'
+       || '"source_reference_period":"2026-09","source_reference_origin":"USER_DECLARED",'
+       || '"source_loaded_at":"2026-10-06T09:00:00"}',
+       TIMESTAMP '2026-10-06 10:00:00')
+      """);
     app.update("""
       INSERT INTO endereco (id, cidade, uf, municipio_ibge, latitude, longitude,
                             coordenada_origem, coordenada_precisao)
@@ -75,6 +92,12 @@ class EducationBadgeEndpointIntegrationTest {
       .andExpect(jsonPath("$.estate.id").value(900000000101L))
       .andExpect(jsonPath("$.estate.educationBadge.status").value("CALCULATED"))
       .andExpect(jsonPath("$.estate.educationBadge.score").value(71.0))
-      .andExpect(jsonPath("$.estate.educationBadge.schoolsWithinRadius").value(5));
+      .andExpect(jsonPath("$.estate.educationBadge.schoolsWithinRadius").value(5))
+      .andExpect(jsonPath("$.estate.healthBadges[0].type").value("HEALTH_PRIMARY_CARE"))
+      .andExpect(jsonPath("$.estate.healthBadges[0].granted").value(true))
+      .andExpect(jsonPath("$.estate.healthBadges[0].facilitiesWithinRadius").value(1))
+      .andExpect(jsonPath("$.estate.healthBadges[0].sourceReferencePeriod").value("2026-09"))
+      .andExpect(jsonPath("$.estate.healthBadges[1].type").value("HEALTH_GENERAL_HOSPITAL"))
+      .andExpect(jsonPath("$.estate.healthBadges[1].granted").value(false));
   }
 }

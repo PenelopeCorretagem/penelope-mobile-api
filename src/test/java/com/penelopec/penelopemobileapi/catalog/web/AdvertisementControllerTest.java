@@ -80,7 +80,8 @@ class AdvertisementControllerTest {
         ),
         Set.of(new AdvertisementResponse.MediaResponse(1L, "https://images.example.com/aurora.jpg", "Imagem")),
         Set.of(new AdvertisementResponse.AmenityResponse(1L, "Piscina", "pool")),
-        educationBadge
+        educationBadge,
+        List.of()
       )
     );
   }

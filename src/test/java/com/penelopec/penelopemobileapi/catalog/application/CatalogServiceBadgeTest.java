@@ -21,21 +21,29 @@ import static org.mockito.Mockito.when;
 class CatalogServiceBadgeTest {
   private final SpringAdvertisementRepository advertisements = mock(SpringAdvertisementRepository.class);
   private final EducationBadgeReader badges = mock(EducationBadgeReader.class);
-  private final CatalogService service = new CatalogService(advertisements, badges);
+  private final HealthBadgeReader healthBadges = mock(HealthBadgeReader.class);
+  private final CatalogService service = new CatalogService(advertisements, badges, healthBadges);
 
   @Test
   void readsBadgeUsingEstateIdOnlyForDetail() {
     AdvertisementJpaEntity advertisement = advertisement();
     when(advertisements.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(advertisement));
     when(badges.findByEstateId(42L)).thenReturn(Optional.of(EducationBadgeResponse.notCalculated()));
+    when(healthBadges.findHealthByEstateId(42L)).thenReturn(List.of(
+      HealthBadgeResponse.notCalculated("HEALTH_PRIMARY_CARE"),
+      HealthBadgeResponse.notCalculated("HEALTH_GENERAL_HOSPITAL")
+    ));
 
     AdvertisementResponse detail = service.findActiveById(1L);
 
     assertThat(detail.estate().educationBadge().status()).isEqualTo("NOT_CALCULATED");
+    assertThat(detail.estate().healthBadges()).hasSize(2);
     verify(badges).findByEstateId(42L);
+    verify(healthBadges).findHealthByEstateId(42L);
 
     when(advertisements.findCatalog(true, null)).thenReturn(List.of(advertisement));
     assertThat(service.findAll(null, true).getFirst().estate().educationBadge()).isNull();
+    assertThat(service.findAll(null, true).getFirst().estate().healthBadges()).isEmpty();
     verify(badges, never()).findByEstateId(1L);
   }
 
@@ -47,6 +55,19 @@ class CatalogServiceBadgeTest {
 
     assertThat(service.findActiveById(1L).estate().educationBadge().status())
       .isEqualTo("UNAVAILABLE");
+  }
+
+  @Test
+  void keepsAdvertisementAvailableWhenHealthBadgeDatabaseFails() {
+    when(advertisements.findByIdAndActiveTrue(1L)).thenReturn(Optional.of(advertisement()));
+    when(badges.findByEstateId(42L)).thenReturn(Optional.of(EducationBadgeResponse.notCalculated()));
+    when(healthBadges.findHealthByEstateId(42L))
+      .thenThrow(new DataAccessResourceFailureException("offline"));
+
+    AdvertisementResponse detail = service.findActiveById(1L);
+    assertThat(detail.estate().educationBadge().status()).isEqualTo("NOT_CALCULATED");
+    assertThat(detail.estate().healthBadges()).extracting(HealthBadgeResponse::status)
+      .containsExactly("UNAVAILABLE", "UNAVAILABLE");
   }
 
   private AdvertisementJpaEntity advertisement() {
