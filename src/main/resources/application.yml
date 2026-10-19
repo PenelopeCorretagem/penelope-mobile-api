@@ -1,10 +1,18 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   application:
     name: penelope-mobile-api
   profiles:
     default: dev
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:25}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
 
 server:
+  port: ${SERVER_PORT:8080}
   servlet:
     context-path: /api
 
@@ -21,8 +29,13 @@ app:
       - /swagger-ui/**
       - /v3/api-docs/**
       - /v1/auth/**
+      - /v1/property-search/**
   frontend:
     url: ${APP_FRONTEND_URL:http://localhost:3000}
+  ai-search:
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-3.6-flash}
 
 management:
   endpoints:
