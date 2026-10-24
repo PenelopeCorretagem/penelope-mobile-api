@@ -2,6 +2,11 @@
 /target/
 !.mvn/wrapper/maven-wrapper.jar
 
+# Configuração local
+.env
+.env.*
+!.env.example
+
 # Java
 *.class
 *.log
