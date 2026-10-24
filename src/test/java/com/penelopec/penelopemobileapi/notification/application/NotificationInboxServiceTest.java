@@ -32,7 +32,7 @@ class NotificationInboxServiceTest {
   @Test
   void shouldMarkOnlyAuthenticatedUserNotificationAsRead() {
     when(users.findByEmail("ana@penelope.com")).thenReturn(Optional.of(user()));
-    when(notifications.markAsRead(1L, 10L, CURRENT_TIME)).thenReturn(1L);
+    when(notifications.markAsRead(1L, 10L, CURRENT_TIME)).thenReturn(1);
 
     service.markAsRead("ana@penelope.com", 10L);
 
@@ -42,7 +42,7 @@ class NotificationInboxServiceTest {
   @Test
   void shouldSoftDeleteOnlyAuthenticatedUserNotification() {
     when(users.findByEmail("ana@penelope.com")).thenReturn(Optional.of(user()));
-    when(notifications.markAsDeleted(1L, 10L, CURRENT_TIME)).thenReturn(1L);
+    when(notifications.markAsDeleted(1L, 10L, CURRENT_TIME)).thenReturn(1);
 
     service.delete("ana@penelope.com", 10L);
 
@@ -52,7 +52,7 @@ class NotificationInboxServiceTest {
   @Test
   void shouldHideNotificationNotOwnedByAuthenticatedUser() {
     when(users.findByEmail("ana@penelope.com")).thenReturn(Optional.of(user()));
-    when(notifications.markAsRead(1L, 10L, CURRENT_TIME)).thenReturn(0L);
+    when(notifications.markAsRead(1L, 10L, CURRENT_TIME)).thenReturn(0);
 
     assertThatThrownBy(() -> service.markAsRead("ana@penelope.com", 10L))
       .isInstanceOf(NotFoundException.class)

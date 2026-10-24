@@ -11,6 +11,7 @@ public class User {
   private String name;
   private String email;
   private LocalDate birthDate;
+  private String profileImage;
   private String password;
   private final AccessLevel accessLevel;
   private String passwordResetToken;
@@ -35,7 +36,15 @@ public class User {
 
   public static User restore(Long id, String name, String email, LocalDate birthDate, String password,
                              AccessLevel accessLevel, String passwordResetToken, Instant passwordResetTokenExpiry) {
-    return new User(id, name, email, birthDate, password, accessLevel, passwordResetToken, passwordResetTokenExpiry);
+    return restore(id, name, email, birthDate, password, accessLevel, passwordResetToken, passwordResetTokenExpiry, null);
+  }
+
+  public static User restore(Long id, String name, String email, LocalDate birthDate, String password,
+                             AccessLevel accessLevel, String passwordResetToken, Instant passwordResetTokenExpiry,
+                             String profileImage) {
+    User user = new User(id, name, email, birthDate, password, accessLevel, passwordResetToken, passwordResetTokenExpiry);
+    user.profileImage = profileImage;
+    return user;
   }
 
   public void generatePasswordResetToken(String token, Instant expiry) {
@@ -53,15 +62,21 @@ public class User {
   }
 
   public void updateProfile(String name, String email, LocalDate birthDate) {
+    updateProfile(name, email, birthDate, profileImage);
+  }
+
+  public void updateProfile(String name, String email, LocalDate birthDate, String profileImage) {
     this.name = name;
     this.email = email;
     this.birthDate = birthDate;
+    this.profileImage = profileImage;
   }
 
   public Long getId() { return id; }
   public String getName() { return name; }
   public String getEmail() { return email; }
   public LocalDate getBirthDate() { return birthDate; }
+  public String getProfileImage() { return profileImage; }
   public String getPassword() { return password; }
   public AccessLevel getAccessLevel() { return accessLevel; }
   public String getPasswordResetToken() { return passwordResetToken; }

@@ -27,7 +27,7 @@ public interface SpringUserNotificationRepository extends JpaRepository<UserNoti
       and userNotification.userId = :userId
       and userNotification.deletedAt is null
     """)
-  long markAsRead(
+  int markAsRead(
     @Param("userId") Long userId, 
     @Param("notificationId") Long notificationId, 
     @Param("readAt") Instant readAt);
@@ -39,7 +39,7 @@ public interface SpringUserNotificationRepository extends JpaRepository<UserNoti
     where userNotification.id = :notificationId
       and userNotification.userId = :userId
     """)
-  long markAsDeleted(
+  int markAsDeleted(
     @Param("userId") Long userId, 
     @Param("notificationId") Long notificationId, 
     @Param("deletedAt") Instant deletedAt);

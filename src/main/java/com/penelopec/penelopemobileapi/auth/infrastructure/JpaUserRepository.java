@@ -36,7 +36,8 @@ public class JpaUserRepository implements UserRepository {
       entity.getPassword(),
       entity.getAccessLevel(),
       entity.getPasswordResetToken(),
-      entity.getPasswordResetTokenExpiry()
+      entity.getPasswordResetTokenExpiry(),
+      entity.getProfileImage()
     );
   }
 
@@ -46,6 +47,7 @@ public class JpaUserRepository implements UserRepository {
     entity.setName(user.getName());
     entity.setEmail(user.getEmail());
     entity.setBirthDate(user.getBirthDate());
+    entity.setProfileImage(user.getProfileImage());
     entity.setPassword(user.getPassword());
     entity.setAccessLevel(user.getAccessLevel());
     entity.setPasswordResetToken(user.getPasswordResetToken());

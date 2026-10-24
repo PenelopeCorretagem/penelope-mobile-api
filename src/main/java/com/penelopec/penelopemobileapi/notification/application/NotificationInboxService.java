@@ -30,13 +30,13 @@ public class NotificationInboxService {
 
   @Transactional
   public void markAsRead(String email, Long notificationId) {
-    long updated = notifications.markAsRead(findUser(email).getId(), notificationId, clock.instant());
+    int updated = notifications.markAsRead(findUser(email).getId(), notificationId, clock.instant());
     ensureNotificationWasUpdated(updated);
   }
 
   @Transactional
   public void delete(String email, Long notificationId) {
-    long updated = notifications.markAsDeleted(findUser(email).getId(), notificationId, clock.instant());
+    int updated = notifications.markAsDeleted(findUser(email).getId(), notificationId, clock.instant());
     ensureNotificationWasUpdated(updated);
   }
 
@@ -45,7 +45,7 @@ public class NotificationInboxService {
       .orElseThrow(() -> new NotFoundException(AuthErrorCode.USER_NOT_FOUND.toError()));
   }
 
-  private void ensureNotificationWasUpdated(long updated) {
+  private void ensureNotificationWasUpdated(int updated) {
     if (updated == 0) {
       throw new NotFoundException(DomainError.of("NOTIFICATION_404", "Notificação não encontrada."));
     }
