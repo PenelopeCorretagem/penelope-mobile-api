@@ -71,6 +71,52 @@ class GeminiPropertySearchProviderTest {
     }
 
     @Test
+    @DisplayName("Deve ler texto no formato atual de steps da Interactions API")
+    void shouldParseCurrentInteractionsResponse() throws IOException {
+        HttpServer mockGemini = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        mockGemini.createContext("/v1beta/interactions", exchange -> {
+            byte[] response = """
+                {
+                  "status": "completed",
+                  "steps": [
+                    {
+                      "type": "model_output",
+                      "content": [{"type": "text", "text": "{\\"searchTerm\\":\\"casa\\",\\"minBedrooms\\":3}"}]
+                    }
+                  ]
+                }
+                """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        mockGemini.start();
+
+        try {
+            GeminiPropertySearchProvider provider = new GeminiPropertySearchProvider(
+                RestClient.builder()
+                    .baseUrl("http://127.0.0.1:" + mockGemini.getAddress().getPort() + "/v1beta/interactions")
+                    .build(),
+                OBJECT_MAPPER,
+                new GeminiProperties("test-api-key", "gemini-3.6-flash")
+            );
+
+            PropertySearchFilters result = provider.interpret(new PropertySearchInterpretationRequest(
+                "casa com três quartos",
+                List.of(),
+                List.of(),
+                List.of("TODOS")
+            ));
+
+            assertThat(result.searchTerm()).isEqualTo("casa");
+            assertThat(result.minBedrooms()).isEqualTo(3);
+        } finally {
+            mockGemini.stop(0);
+        }
+    }
+
+    @Test
     @DisplayName("Deve retornar indisponibilidade quando a chave não está configurada")
     void shouldRejectMissingApiKey() {
         GeminiPropertySearchProvider provider = new GeminiPropertySearchProvider(

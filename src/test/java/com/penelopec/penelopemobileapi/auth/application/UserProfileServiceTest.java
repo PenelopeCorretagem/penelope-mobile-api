@@ -38,6 +38,22 @@ class UserProfileServiceTest {
   }
 
   @Test
+  void shouldPersistAndReturnProfileImage() {
+    InMemoryUserRepository users = new InMemoryUserRepository();
+    users.save(user(1L, "Ana", "ana@penelope.com"));
+    UserProfileService service = new UserProfileService(users, new FixedTokenService());
+
+    String image = "data:image/jpeg;base64,ZmFrZS1pbWFnZQ==";
+    UpdateUserProfileResponse response = service.updateProfile(
+      "ana@penelope.com",
+      new UpdateUserProfileRequest("Ana", "ana@penelope.com", null, image)
+    );
+
+    assertThat(response.profile().profileImage()).isEqualTo(image);
+    assertThat(users.findByEmail("ana@penelope.com").orElseThrow().getProfileImage()).isEqualTo(image);
+  }
+
+  @Test
   void shouldRejectProfileUpdateWhenEmailBelongsToAnotherUser() {
     InMemoryUserRepository users = new InMemoryUserRepository();
     users.save(user(1L, "Ana", "ana@penelope.com"));

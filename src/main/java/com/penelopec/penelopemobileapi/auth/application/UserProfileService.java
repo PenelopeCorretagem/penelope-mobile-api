@@ -29,7 +29,7 @@ public class UserProfileService {
       ensureEmailIsAvailable(request.email());
     }
 
-    user.updateProfile(request.name(), request.email(), request.birthDate());
+    user.updateProfile(request.name(), request.email(), request.birthDate(), request.profileImage());
     User savedUser = users.save(user);
     String token = emailChanged ? tokens.generate(savedUser.getEmail(), savedUser.getAccessLevel()) : null;
     return new UpdateUserProfileResponse(toResponse(savedUser), token);
@@ -47,6 +47,6 @@ public class UserProfileService {
   }
 
   private UserProfileResponse toResponse(User user) {
-    return new UserProfileResponse(user.getName(), user.getEmail(), user.getBirthDate());
+    return new UserProfileResponse(user.getName(), user.getEmail(), user.getBirthDate(), user.getProfileImage());
   }
 }
