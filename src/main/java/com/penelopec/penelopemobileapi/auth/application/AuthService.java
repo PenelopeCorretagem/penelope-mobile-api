@@ -1,5 +1,6 @@
 package com.penelopec.penelopemobileapi.auth.application;
 
+import com.penelopec.penelopemobileapi.auth.domain.AccessLevel;
 import com.penelopec.penelopemobileapi.auth.domain.AuthErrorCode;
 import com.penelopec.penelopemobileapi.auth.domain.PasswordEncoder;
 import com.penelopec.penelopemobileapi.auth.domain.PasswordResetNotifier;
@@ -37,6 +38,19 @@ public class AuthService {
 
     String token = tokens.generate(user.getEmail(), user.getAccessLevel());
     return new LoginResponse(token, user.getId(), user.getAccessLevel().name());
+  }
+
+  public RegisterResponse register(RegisterRequest request) {
+    String email = request.email().trim();
+    if (users.findByEmail(email).isPresent()) {
+      throw new ValidationException(AuthErrorCode.EMAIL_ALREADY_IN_USE.toError());
+    }
+
+    User user = User.restore(null, request.name().trim(), email, request.birthDate(),
+      passwords.encode(request.password()), AccessLevel.CLIENTE, null, null);
+    User savedUser = users.save(user);
+    return new RegisterResponse(savedUser.getId(), savedUser.getName(), savedUser.getEmail(),
+      savedUser.getBirthDate(), savedUser.getAccessLevel().name());
   }
 
   public Optional<TokenIdentity> validateAccessToken(String token) {

@@ -135,6 +135,20 @@ Invoke-RestMethod `
   -Body $body
 ```
 
+## CI/CD
+
+O workflow [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) roda em todo pull
+request para a `main`, em todo push na `main` e manualmente (`workflow_dispatch`):
+
+1. **Build & testes**: verifica se não há versões de migration Flyway duplicadas, executa
+   `mvn verify` com JDK 21 e publica o JAR e os relatórios de teste como artefatos.
+2. **Smoke test (MySQL + Flyway)**: sobe a API contra um MySQL 8 real, aplicando as migrations
+   e validando o mapeamento JPA, e aguarda `/api/actuator/health` responder `UP`.
+3. **Publicar build da main**: somente em push na `main`, cria uma release `build-<n>` com o JAR.
+
+O Dependabot ([`.github/dependabot.yml`](.github/dependabot.yml)) abre PRs semanais de
+atualização de dependências Maven e GitHub Actions.
+
 ## Estrutura
 
 - `src/main/java/.../auth`: autenticação e perfil.

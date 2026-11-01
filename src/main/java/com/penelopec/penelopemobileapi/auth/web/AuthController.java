@@ -3,10 +3,13 @@ package com.penelopec.penelopemobileapi.auth.web;
 import com.penelopec.penelopemobileapi.auth.application.AuthService;
 import com.penelopec.penelopemobileapi.auth.application.LoginRequest;
 import com.penelopec.penelopemobileapi.auth.application.LoginResponse;
+import com.penelopec.penelopemobileapi.auth.application.RegisterRequest;
+import com.penelopec.penelopemobileapi.auth.application.RegisterResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +29,11 @@ public class AuthController {
   @PostMapping("/login")
   public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
     return ResponseEntity.ok(authService.login(request));
+  }
+
+  @PostMapping("/register")
+  public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+    return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
   }
 
   @PostMapping("/validate-access-token")

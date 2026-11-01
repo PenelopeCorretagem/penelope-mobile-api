@@ -42,6 +42,9 @@ public class UserJpaEntity {
   @Column(name = "data_nascimento")
   private LocalDate birthDate;
 
+  @Column(name = "imagem_perfil", columnDefinition = "LONGTEXT")
+  private String profileImage;
+
   @Column(name = "token_redefinicao_senha")
   private String passwordResetToken;
 

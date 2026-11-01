@@ -1,0 +1,2 @@
+ALTER TABLE usuario
+  ADD COLUMN imagem_perfil LONGTEXT NULL;

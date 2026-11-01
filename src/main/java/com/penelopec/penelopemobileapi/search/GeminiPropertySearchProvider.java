@@ -9,18 +9,24 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class GeminiPropertySearchProvider implements PropertySearchInterpretationProvider {
     private static final String INTERACTIONS_ENDPOINT =
         "https://generativelanguage.googleapis.com/v1beta/interactions";
     private static final int MAX_PROVIDER_RESPONSE_LENGTH = 16_384;
+    private static final Logger LOGGER = LoggerFactory.getLogger(GeminiPropertySearchProvider.class);
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
@@ -65,6 +71,14 @@ public class GeminiPropertySearchProvider implements PropertySearchInterpretatio
             return parseResponse(responseBody);
         } catch (ResponseStatusException exception) {
             throw exception;
+        } catch (RestClientResponseException exception) {
+            HttpStatusCode status = exception.getStatusCode();
+            LOGGER.warn("Falha no serviço Gemini status={} model={}", status.value(), properties.model());
+            throw new ResponseStatusException(
+                resolveProviderFailureStatus(status),
+                resolveProviderFailureMessage(status),
+                exception
+            );
         } catch (RestClientException exception) {
             throw new ResponseStatusException(
                 HttpStatus.BAD_GATEWAY,
@@ -74,6 +88,21 @@ public class GeminiPropertySearchProvider implements PropertySearchInterpretatio
         } catch (JsonProcessingException exception) {
             throw new InfrastructureException("Não foi possível preparar a solicitação para a IA.", exception);
         }
+    }
+
+    private static HttpStatus resolveProviderFailureStatus(HttpStatusCode status) {
+        if (status.value() == 401 || status.value() == 403 || status.value() == 429) {
+            return HttpStatus.SERVICE_UNAVAILABLE;
+        }
+        return HttpStatus.BAD_GATEWAY;
+    }
+
+    private static String resolveProviderFailureMessage(HttpStatusCode status) {
+        return switch (status.value()) {
+            case 401, 403 -> "A credencial do serviço de IA foi rejeitada.";
+            case 429 -> "O serviço de IA atingiu o limite de utilização.";
+            default -> "O serviço de IA rejeitou a solicitação.";
+        };
     }
 
     private Map<String, Object> createRequest(PropertySearchInterpretationRequest request)
@@ -153,8 +182,8 @@ public class GeminiPropertySearchProvider implements PropertySearchInterpretatio
         }
 
         try {
-            JsonNode interaction = objectMapper.readTree(responseBody).path("interaction");
-            String outputText = interaction.path("output_text").asText();
+            JsonNode response = objectMapper.readTree(responseBody);
+            String outputText = extractOutputText(response);
             if (outputText.isBlank()) {
                 throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
@@ -178,6 +207,34 @@ public class GeminiPropertySearchProvider implements PropertySearchInterpretatio
                 exception
             );
         }
+    }
+
+    private String extractOutputText(JsonNode response) {
+        String legacyOutput = response.path("interaction").path("output_text").asText("");
+        if (!legacyOutput.isBlank()) return legacyOutput;
+
+        String directOutput = response.path("output_text").asText("");
+        if (!directOutput.isBlank()) return directOutput;
+
+        JsonNode steps = response.path("steps");
+        if (!steps.isArray()) return "";
+
+        return streamTextSteps(steps);
+    }
+
+    private String streamTextSteps(JsonNode steps) {
+        String output = "";
+        for (JsonNode step : steps) {
+            if (!"model_output".equals(step.path("type").asText())) continue;
+
+            JsonNode content = step.path("content");
+            if (!content.isArray()) continue;
+
+            output = content.findValuesAsText("text").stream()
+                .collect(Collectors.joining());
+            if (!output.isBlank()) return output;
+        }
+        return output;
     }
 
     private static String optionalText(JsonNode node, String field) {

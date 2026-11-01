@@ -24,8 +24,8 @@ public class AddressJpaEntity {
   @Column(name = "regiao")
   private String region;
 
-  @Column(name = "uf", nullable = false)
-  private String state;
+    @Column(name = "uf", nullable = false, columnDefinition = "CHAR(2)")
+    private String state;
 
   private Double latitude;
   private Double longitude;

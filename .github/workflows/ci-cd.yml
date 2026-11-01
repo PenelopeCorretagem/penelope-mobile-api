@@ -1,0 +1,133 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  JAVA_VERSION: '21'
+
+jobs:
+  build:
+    name: Build & testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Validar migrations Flyway (versões únicas)
+        run: |
+          dups=$(ls src/main/resources/db/migration | grep -oE '^V[0-9_.]+__' | sort | uniq -d)
+          if [ -n "$dups" ]; then
+            echo "::error::Versões de migration duplicadas: $dups"
+            exit 1
+          fi
+
+      - name: Build e testes
+        run: mvn -B -ntp verify
+
+      - name: Publicar relatórios de teste
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Publicar JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: penelope-mobile-api-jar
+          path: target/penelope-mobile-api-*.jar
+          retention-days: 7
+
+  smoke-test:
+    name: Smoke test (MySQL + Flyway)
+    needs: build
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: penelope_mobile
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Configurar JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Baixar JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: penelope-mobile-api-jar
+
+      # Sobe a API contra um MySQL real: valida migrations Flyway e o mapeamento JPA (ddl-auto: validate).
+      - name: Subir aplicação e verificar health
+        env:
+          SPRING_PROFILES_ACTIVE: dev
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          JWT_API_KEY: ci-smoke-test-secret
+          MANAGEMENT_HEALTH_MAIL_ENABLED: 'false'
+        run: |
+          java -jar penelope-mobile-api-*.jar > app.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/actuator/health; then
+              echo; echo "Aplicação saudável."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Aplicação não ficou saudável a tempo"
+          cat app.log
+          exit 1
+
+  release:
+    name: Publicar build da main
+    needs: smoke-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Baixar JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: penelope-mobile-api-jar
+
+      - name: Criar release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" penelope-mobile-api-*.jar \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Build #${GITHUB_RUN_NUMBER}" \
+            --notes "Build automático da main (${GITHUB_SHA::7})."
