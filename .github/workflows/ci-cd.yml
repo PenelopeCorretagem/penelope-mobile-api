@@ -83,7 +83,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
 
       - name: Baixar JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: penelope-mobile-api-jar
 
@@ -117,7 +117,7 @@ jobs:
       contents: write
     steps:
       - name: Baixar JAR
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: penelope-mobile-api-jar
 
