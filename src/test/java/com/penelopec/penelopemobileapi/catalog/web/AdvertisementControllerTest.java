@@ -2,7 +2,6 @@ package com.penelopec.penelopemobileapi.catalog.web;
 
 import com.penelopec.penelopemobileapi.catalog.application.AdvertisementResponse;
 import com.penelopec.penelopemobileapi.catalog.application.CatalogService;
-import com.penelopec.penelopemobileapi.catalog.application.EducationBadgeResponse;
 import com.penelopec.penelopemobileapi.catalog.infrastructure.persistence.EstateType;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,7 +29,7 @@ class AdvertisementControllerTest {
 
   @Test
   void shouldListActiveAdvertisementsFilteredByEstateType() throws Exception {
-    when(catalogService.findAll(EstateType.LANCAMENTO, true)).thenReturn(List.of(advertisement(null)));
+    when(catalogService.findAll(EstateType.LANCAMENTO, true)).thenReturn(List.of(advertisement()));
 
     mockMvc.perform(get("/v1/advertisements")
         .param("type", "LANCAMENTO")
@@ -45,22 +44,22 @@ class AdvertisementControllerTest {
 
   @Test
   void shouldReturnActiveAdvertisementDetails() throws Exception {
-    when(catalogService.findActiveById(1L)).thenReturn(advertisement(educationBadge()));
+    when(catalogService.findActiveById(1L)).thenReturn(advertisement());
 
     mockMvc.perform(get("/v1/advertisements/1"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.price").value(450000))
       .andExpect(jsonPath("$.estate.id").value(10))
       .andExpect(jsonPath("$.estate.address.municipalityIbgeCode").value("3550308"))
-      .andExpect(jsonPath("$.estate.educationBadge.status").value("CALCULATED"))
-      .andExpect(jsonPath("$.estate.educationBadge.schoolsWithinRadius").value(5))
+      .andExpect(jsonPath("$.estate.educationBadge").doesNotExist())
+      .andExpect(jsonPath("$.estate.healthBadges").doesNotExist())
       .andExpect(jsonPath("$.estate.images[0].type").value("Imagem"))
       .andExpect(jsonPath("$.estate.amenities[0].description").value("Piscina"));
 
     verify(catalogService).findActiveById(1L);
   }
 
-  private AdvertisementResponse advertisement(EducationBadgeResponse educationBadge) {
+  private AdvertisementResponse advertisement() {
     return new AdvertisementResponse(
       1L,
       BigDecimal.valueOf(450_000),
@@ -79,19 +78,8 @@ class AdvertisementControllerTest {
           "GEOCODED", "ADDRESS", LocalDateTime.of(2026, 9, 10, 9, 0)
         ),
         Set.of(new AdvertisementResponse.MediaResponse(1L, "https://images.example.com/aurora.jpg", "Imagem")),
-        Set.of(new AdvertisementResponse.AmenityResponse(1L, "Piscina", "pool")),
-        educationBadge,
-        List.of()
+        Set.of(new AdvertisementResponse.AmenityResponse(1L, "Piscina", "pool"))
       )
-    );
-  }
-
-  private EducationBadgeResponse educationBadge() {
-    return new EducationBadgeResponse(
-      "CALCULATED", BigDecimal.valueOf(71), true, 3000, 5,
-      BigDecimal.valueOf(450), "STRAIGHT_LINE_HAVERSINE", "education-v1",
-      "INEP_SCHOOLS", 1L, LocalDateTime.of(2026, 10, 2, 9, 0),
-      LocalDateTime.of(2026, 10, 2, 10, 0)
     );
   }
 }
