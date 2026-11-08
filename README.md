@@ -159,3 +159,24 @@ atualização de dependências Maven e GitHub Actions.
 - `src/main/java/.../shared`: componentes compartilhados da API.
 - `src/main/resources/db/migration`: migrações Flyway.
 - `src/test`: testes automatizados.
+
+## Insígnias (notas 0 a 10)
+
+`GET /api/v1/estates/{estateId}/badges` (autenticado) retorna sempre as seis
+insígnias, em ordem fixa: `EDUCATION`, `HEALTH_PRIMARY_CARE`,
+`HEALTH_GENERAL_HOSPITAL`, `GREEN_PARK_NEARBY`, `TRANSPORT_ACCESS` e
+`SAFETY_OCCURRENCES`. As notas (`score_10`) são calculadas pelo projeto
+`penelope-data-intelligence` para `empreendimento.id`; a API só lê o banco
+analítico em modo somente leitura. Imóvel inexistente ou inativo retorna 404.
+
+Cada item traz `type`, `label`, `score` (0-10, ou `null`), `granted`, `status`
+(`CALCULATED` ou `UNAVAILABLE`), `reason` (`NOT_CALCULATED`, `NO_COORDINATES`,
+`OUT_OF_COVERAGE`, `LOW_PRECISION`, `SOURCE_ERROR`, `DISABLED`...),
+`explanation` em pt-BR e `evidence`. A listagem e o detalhe de anúncios não
+consultam insígnias.
+
+Configure `BADGES_ENABLED=true`, `BADGES_DB_URL`, `BADGES_DB_USER` e
+`BADGES_DB_PASSWORD`. No MySQL local do projeto Python, a URL para a API
+executada no host é `jdbc:mysql://localhost:3307/penelope_etl`. Com a
+integração desligada, todas as insígnias retornam `UNAVAILABLE/DISABLED`.
+Veja também `../penelope-data-intelligence/docs/fluxo-completo-insignia-educacao.md`.

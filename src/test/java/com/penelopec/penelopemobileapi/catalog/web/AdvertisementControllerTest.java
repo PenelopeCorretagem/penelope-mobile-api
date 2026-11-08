@@ -36,7 +36,8 @@ class AdvertisementControllerTest {
         .param("active", "true"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].id").value(1))
-      .andExpect(jsonPath("$[0].estate.type").value("LANCAMENTO"));
+      .andExpect(jsonPath("$[0].estate.type").value("LANCAMENTO"))
+      .andExpect(jsonPath("$[0].estate.educationBadge").doesNotExist());
 
     verify(catalogService).findAll(EstateType.LANCAMENTO, true);
   }
@@ -48,6 +49,10 @@ class AdvertisementControllerTest {
     mockMvc.perform(get("/v1/advertisements/1"))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.price").value(450000))
+      .andExpect(jsonPath("$.estate.id").value(10))
+      .andExpect(jsonPath("$.estate.address.municipalityIbgeCode").value("3550308"))
+      .andExpect(jsonPath("$.estate.educationBadge").doesNotExist())
+      .andExpect(jsonPath("$.estate.healthBadges").doesNotExist())
       .andExpect(jsonPath("$.estate.images[0].type").value("Imagem"))
       .andExpect(jsonPath("$.estate.amenities[0].description").value("Piscina"));
 
@@ -62,12 +67,16 @@ class AdvertisementControllerTest {
       false,
       LocalDateTime.of(2026, 9, 10, 10, 30),
       new AdvertisementResponse.EstateResponse(
+        10L,
         "Residencial Aurora",
         "Apartamento com vista livre.",
         82.0,
         3,
         "LANCAMENTO",
-        new AdvertisementResponse.AddressResponse("São Paulo", "Centro", "SP", -23.5505, -46.6333),
+        new AdvertisementResponse.AddressResponse(
+          "São Paulo", "Centro", "SP", "3550308", -23.5505, -46.6333,
+          "GEOCODED", "ADDRESS", LocalDateTime.of(2026, 9, 10, 9, 0)
+        ),
         Set.of(new AdvertisementResponse.MediaResponse(1L, "https://images.example.com/aurora.jpg", "Imagem")),
         Set.of(new AdvertisementResponse.AmenityResponse(1L, "Piscina", "pool"))
       )

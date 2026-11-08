@@ -13,6 +13,7 @@ public record AdvertisementResponse(
   EstateResponse estate
 ) {
   public record EstateResponse(
+    Long id,
     String title,
     String description,
     Double area,
@@ -24,7 +25,17 @@ public record AdvertisementResponse(
   ) {
   }
 
-  public record AddressResponse(String city, String region, String uf, Double latitude, Double longitude) {
+  public record AddressResponse(
+    String city,
+    String region,
+    String uf,
+    String municipalityIbgeCode,
+    Double latitude,
+    Double longitude,
+    String coordinateSource,
+    String coordinatePrecision,
+    LocalDateTime coordinateUpdatedAt
+  ) {
   }
 
   public record MediaResponse(Long id, String url, String type) {

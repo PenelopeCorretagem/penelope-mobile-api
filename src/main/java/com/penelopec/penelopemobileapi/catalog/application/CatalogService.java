@@ -30,9 +30,9 @@ public class CatalogService {
 
   @Transactional(readOnly = true)
   public AdvertisementResponse findActiveById(Long id) {
-    return advertisements.findByIdAndActiveTrue(id)
-      .map(this::toResponse)
+    AdvertisementJpaEntity advertisement = advertisements.findByIdAndActiveTrue(id)
       .orElseThrow(() -> new NotFoundException(DomainError.of("CATALOG_404", "Anúncio não encontrado.")));
+    return toResponse(advertisement);
   }
 
   private AdvertisementResponse toResponse(AdvertisementJpaEntity advertisement) {
@@ -44,6 +44,7 @@ public class CatalogService {
       advertisement.isFeatured(),
       advertisement.getCreatedAt(),
       new AdvertisementResponse.EstateResponse(
+        estate.getId(),
         estate.getTitle(),
         estate.getDescription(),
         estate.getArea(),
@@ -53,8 +54,12 @@ public class CatalogService {
           estate.getAddress().getCity(),
           estate.getAddress().getRegion(),
           estate.getAddress().getState(),
+          estate.getAddress().getMunicipalityIbgeCode(),
           estate.getAddress().getLatitude(),
-          estate.getAddress().getLongitude()
+          estate.getAddress().getLongitude(),
+          estate.getAddress().getCoordinateSource(),
+          estate.getAddress().getCoordinatePrecision(),
+          estate.getAddress().getCoordinateUpdatedAt()
         ),
         toMediaResponses(estate.getMedia()),
         toAmenityResponses(estate.getAmenities())
