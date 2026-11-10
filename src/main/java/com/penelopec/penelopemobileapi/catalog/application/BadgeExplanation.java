@@ -20,7 +20,7 @@ final class BadgeExplanation {
         "hospital geral", "hospitais gerais", "Nenhum hospital geral", radius,
         number(evidence, "nearestMeters"));
       case "GREEN_PARK_NEARBY" -> green(evidence);
-      case "TRANSPORT_ACCESS" -> transport(evidence);
+      case "TRANSPORT_BUS_NEARBY", "TRANSPORT_RAIL_NEARBY" -> transport(type, evidence, radius);
       case "SAFETY_OCCURRENCES" -> safety(evidence, radius);
       default -> "Nota calculada a partir de dados públicos do entorno do imóvel.";
     };
@@ -35,6 +35,9 @@ final class BadgeExplanation {
           + label.toLowerCase() + ".";
       case "SOURCE_ERROR" -> "Não foi possível consultar a nota de " + label.toLowerCase() + " agora.";
       case "DISABLED" -> "As notas do entorno estão desativadas neste ambiente.";
+      case "INCOMPLETE_PERIOD" -> "O ano da base de registros está incompleto; nota indisponível.";
+      case "LOW_SOURCE_COVERAGE", "NO_GEOLOCATED_SOURCE", "NO_ELIGIBLE_SOURCE", "NO_CATEGORY_DATA" ->
+        "A fonte não contém dados geolocalizados suficientes para esta avaliação.";
       default -> "A nota de " + label.toLowerCase() + " ainda não foi calculada para este imóvel.";
     };
   }
@@ -59,15 +62,15 @@ final class BadgeExplanation {
     return target + " fica a " + distance(distance) + " em linha reta; quanto mais perto, maior a nota.";
   }
 
-  private static String transport(Map<String, Object> evidence) {
-    Double rail = number(evidence, "railNearestMeters");
-    int buses = count(evidence, "busStopsWithinRadius");
-    String railText = rail == null
-      ? "Sem estação de metrô ou trem por perto"
-      : "Estação de metrô ou trem a " + distance(rail);
-    String busText = buses == 0 ? "nenhum ponto de ônibus por perto"
-      : buses == 1 ? "1 ponto de ônibus por perto" : buses + " pontos de ônibus por perto";
-    return railText + " e " + busText + ". Distâncias em linha reta, sem considerar frequência.";
+  private static String transport(String type, Map<String, Object> evidence, String radius) {
+    boolean bus = type.equals("TRANSPORT_BUS_NEARBY");
+    Double nearest = number(evidence, "nearestMeters");
+    String result = nearest == null
+      ? "Nenhum " + (bus ? "ponto de ônibus cadastrado" : "registro de estação em operação") + " em até " + radius
+      : (bus ? "Ponto de ônibus cadastrado" : "Metrô ou trem informado em operação")
+        + " a " + distance(nearest) + " em linha reta";
+    return result + (bus ? ". A fonte não informa a operação ou frequência do ponto."
+      : ". Situação operacional informada pela fonte; distância não representa trajeto.");
   }
 
   private static String safety(Map<String, Object> evidence, String radius) {
@@ -77,8 +80,8 @@ final class BadgeExplanation {
     String period = from == null ? "" : from.equals(to) ? " em " + from : " entre " + from + " e " + to;
     String found = occurrences == 0 ? "Nenhuma ocorrência registrada"
       : occurrences == 1 ? "1 ocorrência registrada" : occurrences + " ocorrências registradas";
-    return found + " em até " + radius + period
-      + ". Considera apenas registros policiais da região; não mede a segurança do imóvel.";
+    return found + " com coordenadas válidas em até " + radius + period
+      + ". Nota histórica baseada em registros da fonte, sem comprovar BOs distintos ou a segurança atual do imóvel.";
   }
 
   private static int count(Map<String, Object> evidence, String key) {

@@ -13,17 +13,20 @@ import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 
 public class JdbcBadgeReader implements BadgeReader, AutoCloseable {
   private static final String FIND_BADGES = """
-    SELECT badge_type, score_10, granted, calculation_status, radius_meters,
-           rule_version, evidence, calculated_at
+    SELECT badge_type, score, score_10, granted, calculation_status, radius_meters,
+           rule_version, evidence, calculated_at, source_run_id
     FROM property_badge_score
     WHERE property_id = ?
       AND badge_type IN ('EDUCATION', 'HEALTH_PRIMARY_CARE', 'HEALTH_GENERAL_HOSPITAL',
-                         'GREEN_PARK_NEARBY', 'TRANSPORT_ACCESS', 'SAFETY_OCCURRENCES')
+                         'GREEN_PARK_NEARBY', 'TRANSPORT_BUS_NEARBY',
+                         'TRANSPORT_RAIL_NEARBY', 'SAFETY_OCCURRENCES')
     """;
   private static final TypeReference<Map<String, Object>> EVIDENCE_TYPE = new TypeReference<>() {
   };
@@ -45,15 +48,20 @@ public class JdbcBadgeReader implements BadgeReader, AutoCloseable {
 
   private BadgeRecord toRecord(ResultSet row, int rowNumber) throws SQLException {
     Timestamp calculatedAt = row.getTimestamp("calculated_at");
+    BigDecimal rawScore = row.getBigDecimal("score");
+    BigDecimal grade = rawScore == null ? row.getBigDecimal("score_10")
+      : rawScore.divide(BigDecimal.TEN, 1, RoundingMode.HALF_UP);
     return new BadgeRecord(
       row.getString("badge_type"),
-      row.getBigDecimal("score_10"),
+      grade,
       row.getBoolean("granted"),
       row.getString("calculation_status"),
       row.getObject("radius_meters", Integer.class),
       row.getString("rule_version"),
       calculatedAt == null ? null : calculatedAt.toLocalDateTime(),
-      parseEvidence(row.getString("evidence"))
+      parseEvidence(row.getString("evidence")),
+      rawScore,
+      row.getObject("source_run_id", Long.class)
     );
   }
 
@@ -62,7 +70,8 @@ public class JdbcBadgeReader implements BadgeReader, AutoCloseable {
       return Map.of();
     }
     try {
-      return json.readValue(value, EVIDENCE_TYPE);
+      Map<String, Object> result = json.readValue(value, EVIDENCE_TYPE);
+      return result == null ? Map.of() : result;
     } catch (JsonProcessingException error) {
       throw new DataRetrievalFailureException("Evidência da insígnia inválida", error);
     }

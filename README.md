@@ -162,20 +162,29 @@ atualização de dependências Maven e GitHub Actions.
 
 ## Insígnias (notas 0 a 10)
 
-`GET /api/v1/estates/{estateId}/badges` (autenticado) retorna sempre as seis
+`GET /api/v1/estates/{estateId}/badges` (autenticado) retorna sempre as sete
 insígnias, em ordem fixa: `EDUCATION`, `HEALTH_PRIMARY_CARE`,
-`HEALTH_GENERAL_HOSPITAL`, `GREEN_PARK_NEARBY`, `TRANSPORT_ACCESS` e
-`SAFETY_OCCURRENCES`. As notas (`score_10`) são calculadas pelo projeto
+`HEALTH_GENERAL_HOSPITAL`, `GREEN_PARK_NEARBY`, `TRANSPORT_BUS_NEARBY`,
+`TRANSPORT_RAIL_NEARBY` e `SAFETY_OCCURRENCES`. As notas são `score / 10`
+com uma casa decimal (79 → 7,9) e são calculadas pelo projeto
 `penelope-data-intelligence` para `empreendimento.id`; a API só lê o banco
 analítico em modo somente leitura. Imóvel inexistente ou inativo retorna 404.
 
 Cada item traz `type`, `label`, `score` (0-10, ou `null`), `granted`, `status`
 (`CALCULATED` ou `UNAVAILABLE`), `reason` (`NOT_CALCULATED`, `NO_COORDINATES`,
 `OUT_OF_COVERAGE`, `LOW_PRECISION`, `SOURCE_ERROR`, `DISABLED`...),
-`explanation` em pt-BR e `evidence`. A listagem e o detalhe de anúncios não
-consultam insígnias.
+`explanation` em pt-BR e `evidence` com score bruto, fonte, execução, datas e
+medidas. `granted` é independente da nota. Um resultado binário legado sem
+nota mantém `CALCULATED`, com `reason=SCORE_PENDING`. Segurança é identificada
+como histórica, com ano e cobertura das coordenadas.
 
-Configure `BADGES_ENABLED=true`, `BADGES_DB_URL`, `BADGES_DB_USER` e
+O mobile lê `estate.id` no detalhe do anúncio e consulta esta rota com o token.
+O detalhe preserva `estate.educationBadge` e `estate.healthBadges` para
+consumidores anteriores; o score legado de educação continua 0–100. A
+listagem não carrega insígnias. Veja o [contrato OpenAPI](docs/openapi-insignias.yaml).
+
+No projeto Python, aplique a migration `0011` e recalcule as categorias antes
+de habilitar a leitura. Configure `BADGES_ENABLED=true`, `BADGES_DB_URL`, `BADGES_DB_USER` e
 `BADGES_DB_PASSWORD`. No MySQL local do projeto Python, a URL para a API
 executada no host é `jdbc:mysql://localhost:3307/penelope_etl`. Com a
 integração desligada, todas as insígnias retornam `UNAVAILABLE/DISABLED`.

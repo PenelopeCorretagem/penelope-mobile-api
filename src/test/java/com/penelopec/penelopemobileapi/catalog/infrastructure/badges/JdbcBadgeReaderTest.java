@@ -25,7 +25,8 @@ class JdbcBadgeReaderTest {
       CREATE TABLE property_badge_score (
         property_id BIGINT, badge_type VARCHAR(30), score_10 DECIMAL(3,1),
         granted BOOLEAN, calculation_status VARCHAR(40), radius_meters INT,
-        rule_version VARCHAR(50), evidence VARCHAR(4000), calculated_at TIMESTAMP
+        rule_version VARCHAR(50), evidence VARCHAR(4000), calculated_at TIMESTAMP,
+        score DECIMAL(5,2), source_run_id BIGINT
       )
       """);
     reader = new JdbcBadgeReader(dataSource, new ObjectMapper());
@@ -35,24 +36,35 @@ class JdbcBadgeReaderTest {
   void readsOnlyTheRequestedEstateWithScoreAndEvidence() {
     jdbc.update("""
       INSERT INTO property_badge_score VALUES
-      (42, 'TRANSPORT_ACCESS', 6.8, TRUE, 'CALCULATED', 1500, 'transport-access-v1',
-       '{"rail_nearest_meters":300.0,"bus_stops_within_radius":4}', TIMESTAMP '2026-10-02 10:00:00'),
+      (42, 'TRANSPORT_BUS_NEARBY', 6.8, TRUE, 'CALCULATED', 500, 'transport-proximity-v2',
+       '{"nearest_meters":100.0,"source_records_within_radius":4}', TIMESTAMP '2026-10-02 10:00:00', 68, 6),
       (42, 'GREEN_PARK_NEARBY', NULL, FALSE, 'NO_COORDINATES', 1000, 'green-proximity-v3',
-       '{}', TIMESTAMP '2026-10-02 10:00:00'),
-      (42, 'LEGACY_UNKNOWN', 1.0, FALSE, 'CALCULATED', 1, 'x', '{}', TIMESTAMP '2026-10-02 10:00:00'),
-      (43, 'EDUCATION', 9.0, TRUE, 'CALCULATED', 3000, 'education-v1', '{}', TIMESTAMP '2026-10-02 10:00:00')
+       '{}', TIMESTAMP '2026-10-02 10:00:00', NULL, 3),
+      (42, 'LEGACY_UNKNOWN', 1.0, FALSE, 'CALCULATED', 1, 'x', '{}', TIMESTAMP '2026-10-02 10:00:00', 10, 1),
+      (43, 'EDUCATION', 9.0, TRUE, 'CALCULATED', 3000, 'education-v1', '{}', TIMESTAMP '2026-10-02 10:00:00', 90, 1)
       """);
 
     List<BadgeRecord> result = reader.findByEstateId(42L);
 
     assertThat(result).extracting(BadgeRecord::type)
-      .containsExactlyInAnyOrder("TRANSPORT_ACCESS", "GREEN_PARK_NEARBY");
-    BadgeRecord transport = result.stream().filter(item -> item.type().equals("TRANSPORT_ACCESS")).findFirst().orElseThrow();
+      .containsExactlyInAnyOrder("TRANSPORT_BUS_NEARBY", "GREEN_PARK_NEARBY");
+    BadgeRecord transport = result.stream().filter(item -> item.type().equals("TRANSPORT_BUS_NEARBY")).findFirst().orElseThrow();
     assertThat(transport.score10()).isEqualByComparingTo("6.8");
     assertThat(transport.granted()).isTrue();
-    assertThat(transport.evidence()).containsEntry("bus_stops_within_radius", 4);
+    assertThat(transport.evidence()).containsEntry("source_records_within_radius", 4);
+    assertThat(transport.sourceRunId()).isEqualTo(6L);
     BadgeRecord green = result.stream().filter(item -> item.type().equals("GREEN_PARK_NEARBY")).findFirst().orElseThrow();
     assertThat(green.score10()).isNull();
     assertThat(reader.findByEstateId(10L)).isEmpty();
+  }
+
+  @Test
+  void gradeComesFromRawScoreAndSourceIsPreserved() {
+    jdbc.update("INSERT INTO property_badge_score VALUES "
+      + "(42,'EDUCATION',1,TRUE,'CALCULATED',3000,'education-v1','{}',CURRENT_TIMESTAMP,79,7)");
+    BadgeRecord result = reader.findByEstateId(42L).getFirst();
+    assertThat(result.score100()).isEqualByComparingTo("79");
+    assertThat(result.score10()).isEqualByComparingTo("7.9");
+    assertThat(result.sourceRunId()).isEqualTo(7L);
   }
 }

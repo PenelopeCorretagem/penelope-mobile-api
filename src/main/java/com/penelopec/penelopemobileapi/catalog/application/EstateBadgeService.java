@@ -38,12 +38,17 @@ public class EstateBadgeService {
       "source_reference_period", "sourceReferencePeriod")),
     new Definition("GREEN_PARK_NEARBY", "Áreas verdes", keys(
       "nearest_distance_meters", "nearestDistanceMeters", "nearest_name", "nearestName")),
-    new Definition("TRANSPORT_ACCESS", "Transporte público", keys(
-      "rail_stations_within_radius", "railStationsWithinRadius", "rail_nearest_meters", "railNearestMeters",
-      "bus_stops_within_radius", "busStopsWithinRadius", "bus_nearest_meters", "busNearestMeters")),
-    new Definition("SAFETY_OCCURRENCES", "Segurança", keys(
+    new Definition("TRANSPORT_BUS_NEARBY", "Ponto de ônibus próximo", keys(
+      "source_records_within_radius", "sourceRecordsWithinRadius", "nearest_meters", "nearestMeters",
+      "nearest_name", "nearestName", "operation_basis", "operationBasis")),
+    new Definition("TRANSPORT_RAIL_NEARBY", "Metrô ou trem próximo", keys(
+      "source_records_within_radius", "sourceRecordsWithinRadius", "nearest_meters", "nearestMeters",
+      "nearest_name", "nearestName", "operation_basis", "operationBasis")),
+    new Definition("SAFETY_OCCURRENCES", "Segurança — registros históricos", keys(
       "occurrences_within_radius", "occurrencesWithinRadius", "statistics_year_from", "statisticsYearFrom",
-      "statistics_year_to", "statisticsYearTo", "top_natures", "topNatures"))
+      "statistics_year_to", "statisticsYearTo", "top_natures", "topNatures",
+      "source_quality", "sourceQuality", "historical_only", "historicalOnly",
+      "monthly_counts", "monthlyCounts", "counting_unit", "countingUnit"))
   );
 
   private final SpringAdvertisementRepository advertisements;
@@ -81,13 +86,17 @@ public class EstateBadgeService {
     if (record == null) {
       return unavailable(definition, "NOT_CALCULATED");
     }
-    if (!CALCULATED_STATUSES.contains(record.calculationStatus()) || record.score10() == null) {
-      return unavailable(definition, record.calculationStatus());
+    if (!CALCULATED_STATUSES.contains(record.calculationStatus())) {
+      return new BadgeResponse(definition.type(), definition.label(), null, false,
+        "UNAVAILABLE", record.calculationStatus(),
+        BadgeExplanation.unavailable(definition.label(), record.calculationStatus()),
+        evidenceOf(definition, record));
     }
     Map<String, Object> evidence = evidenceOf(definition, record);
     return new BadgeResponse(
       definition.type(), definition.label(), record.score10(), record.granted(),
-      "CALCULATED", null, BadgeExplanation.of(definition.type(), record, evidence), evidence);
+      "CALCULATED", record.score10() == null ? "SCORE_PENDING" : null,
+      BadgeExplanation.of(definition.type(), record, evidence), evidence);
   }
 
   private BadgeResponse unavailable(Definition definition, String reason) {
@@ -107,6 +116,23 @@ public class EstateBadgeService {
     });
     evidence.put("ruleVersion", record.ruleVersion());
     evidence.put("calculatedAt", record.calculatedAt());
+    evidence.put("sourceRunId", record.sourceRunId());
+    evidence.put("rawScore", record.score100());
+    for (String key : List.of("source", "source_loaded_at", "distance_method",
+                             "source_reference_period", "source_reference_origin")) {
+      Object value = record.evidence().get(key);
+      if (value != null) evidence.put(switch (key) {
+        case "source_loaded_at" -> "sourceLoadedAt";
+        case "distance_method" -> "distanceMethod";
+        case "source_reference_period" -> "sourceReferencePeriod";
+        case "source_reference_origin" -> "sourceReferenceOrigin";
+        default -> key;
+      }, value);
+    }
+    if (!evidence.containsKey("source") && record.evidence().get("school_source") != null)
+      evidence.put("source", record.evidence().get("school_source"));
+    if (!evidence.containsKey("sourceLoadedAt") && record.evidence().get("school_source_loaded_at") != null)
+      evidence.put("sourceLoadedAt", record.evidence().get("school_source_loaded_at"));
     return evidence;
   }
 
