@@ -20,6 +20,7 @@ Rotas de negócio usam o contexto `/api`, por exemplo:
 - `GET /api/v1/users/me` e `PATCH /api/v1/users/me`
 - `GET /api/v1/users/me/favorites`, `PUT` e `DELETE /api/v1/users/me/favorites/{advertisementId}`
 - `GET /api/v1/users/me/notifications`
+- `GET /api/v1/market-trends/neighborhoods` e `GET /api/v1/market-trends/neighborhoods/{key}`
 - `GET /api/actuator/health`
 - `GET /api/swagger-ui/index.html`
 
@@ -39,6 +40,33 @@ pela API.
 
 A chamada ao Gemini usa `store: false`. A chave permanece exclusivamente no backend, nunca
 no app ou no bundle público.
+
+## Tendências anuais por bairro
+
+Configure `TRENDS_ENABLED=true`, `TRENDS_DB_URL`, `TRENDS_DB_USER` e
+`TRENDS_DB_PASSWORD` para ler o MySQL do projeto `penelope-data-intelligence`.
+No host, a URL padrão do Compose do ETL é `jdbc:mysql://localhost:3307/penelope_etl`.
+O usuário da API precisa de `SELECT` em `itbi_trend_run` e `itbi_neighborhood_year`.
+No projeto Python, aplique a migration Alembic `0012` ou superior e execute
+`calculate-itbi-trends` antes de consultar a API.
+
+As duas rotas usam `Authorization: Bearer <token>`. Use a primeira para buscar
+`neighborhoods` com `key` e `name`. Passe a chave para a segunda rota. Por
+exemplo, `GET /api/v1/market-trends/neighborhoods/TATUAPE`. Ambas retornam
+`snapshot` com ID, versão da regra, intervalo e corte dos pagamentos. A API
+usa a regra `itbi-apartments-v1` e prioriza o histórico mais longo a partir
+do ano inicial mais antigo, com desempate pelo corte dos pagamentos e ID.
+
+A consulta de bairro retorna `neighborhood` e `years`, em ordem crescente
+por ano. Cada ano traz `sampleCount`, `medianPriceSqm` em reais por m²
+cadastrado, `comparisonYear`, `nominalChangePct`, `status` e
+`comparisonStatus`. Quando faltar amostra ou cobertura, preserve os valores
+`null` e os estados de disponibilidade ao montar a tela.
+
+- `400 INVALID_TREND_NEIGHBORHOOD` para uma chave inválida.
+- `403` quando a API rejeitar a autenticação da requisição.
+- `404 TREND_NEIGHBORHOOD_NOT_FOUND` para um bairro sem série na execução selecionada.
+- `503 MARKET_TRENDS_UNAVAILABLE` quando a leitura estiver desabilitada, faltar uma execução com comparação ou falhar a consulta ao MySQL.
 
 ## Requisitos
 
