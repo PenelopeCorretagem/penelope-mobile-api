@@ -20,6 +20,7 @@ Rotas de negócio usam o contexto `/api`, por exemplo:
 - `GET /api/v1/users/me` e `PATCH /api/v1/users/me`
 - `GET /api/v1/users/me/favorites`, `PUT` e `DELETE /api/v1/users/me/favorites/{advertisementId}`
 - `GET /api/v1/users/me/notifications`
+- `GET /api/v1/market-trends/neighborhoods` e `GET /api/v1/market-trends/neighborhoods/{key}`
 - `GET /api/actuator/health`
 - `GET /api/swagger-ui/index.html`
 
@@ -39,6 +40,33 @@ pela API.
 
 A chamada ao Gemini usa `store: false`. A chave permanece exclusivamente no backend, nunca
 no app ou no bundle público.
+
+## Tendências anuais por bairro
+
+Configure `TRENDS_ENABLED=true`, `TRENDS_DB_URL`, `TRENDS_DB_USER` e
+`TRENDS_DB_PASSWORD` para ler o MySQL do projeto `penelope-data-intelligence`.
+No host, a URL padrão do Compose do ETL é `jdbc:mysql://localhost:3307/penelope_etl`.
+O usuário da API precisa de `SELECT` em `itbi_trend_run` e `itbi_neighborhood_year`.
+No projeto Python, aplique a migration Alembic `0012` ou superior e execute
+`calculate-itbi-trends` antes de consultar a API.
+
+As duas rotas usam `Authorization: Bearer <token>`. Use a primeira para buscar
+`neighborhoods` com `key` e `name`. Passe a chave para a segunda rota. Por
+exemplo, `GET /api/v1/market-trends/neighborhoods/TATUAPE`. Ambas retornam
+`snapshot` com ID, versão da regra, intervalo e corte dos pagamentos. A API
+usa a regra `itbi-apartments-v1` e prioriza o histórico mais longo a partir
+do ano inicial mais antigo, com desempate pelo corte dos pagamentos e ID.
+
+A consulta de bairro retorna `neighborhood` e `years`, em ordem crescente
+por ano. Cada ano traz `sampleCount`, `medianPriceSqm` em reais por m²
+cadastrado, `comparisonYear`, `nominalChangePct`, `status` e
+`comparisonStatus`. Quando faltar amostra ou cobertura, preserve os valores
+`null` e os estados de disponibilidade ao montar a tela.
+
+- `400 INVALID_TREND_NEIGHBORHOOD` para uma chave inválida.
+- `403` quando a API rejeitar a autenticação da requisição.
+- `404 TREND_NEIGHBORHOOD_NOT_FOUND` para um bairro sem série na execução selecionada.
+- `503 MARKET_TRENDS_UNAVAILABLE` quando a leitura estiver desabilitada, faltar uma execução com comparação ou falhar a consulta ao MySQL.
 
 ## Requisitos
 
@@ -159,3 +187,33 @@ atualização de dependências Maven e GitHub Actions.
 - `src/main/java/.../shared`: componentes compartilhados da API.
 - `src/main/resources/db/migration`: migrações Flyway.
 - `src/test`: testes automatizados.
+
+## Insígnias (notas 0 a 10)
+
+`GET /api/v1/estates/{estateId}/badges` (autenticado) retorna sempre as sete
+insígnias, em ordem fixa: `EDUCATION`, `HEALTH_PRIMARY_CARE`,
+`HEALTH_GENERAL_HOSPITAL`, `GREEN_PARK_NEARBY`, `TRANSPORT_BUS_NEARBY`,
+`TRANSPORT_RAIL_NEARBY` e `SAFETY_OCCURRENCES`. As notas são `score / 10`
+com uma casa decimal (79 → 7,9) e são calculadas pelo projeto
+`penelope-data-intelligence` para `empreendimento.id`; a API só lê o banco
+analítico em modo somente leitura. Imóvel inexistente ou inativo retorna 404.
+
+Cada item traz `type`, `label`, `score` (0-10, ou `null`), `granted`, `status`
+(`CALCULATED` ou `UNAVAILABLE`), `reason` (`NOT_CALCULATED`, `NO_COORDINATES`,
+`OUT_OF_COVERAGE`, `LOW_PRECISION`, `SOURCE_ERROR`, `DISABLED`...),
+`explanation` em pt-BR e `evidence` com score bruto, fonte, execução, datas e
+medidas. `granted` é independente da nota. Um resultado binário legado sem
+nota mantém `CALCULATED`, com `reason=SCORE_PENDING`. Segurança é identificada
+como histórica, com ano e cobertura das coordenadas.
+
+O mobile lê `estate.id` no detalhe do anúncio e consulta esta rota com o token.
+O detalhe preserva `estate.educationBadge` e `estate.healthBadges` para
+consumidores anteriores; o score legado de educação continua 0–100. A
+listagem não carrega insígnias. Veja o [contrato OpenAPI](docs/openapi-insignias.yaml).
+
+No projeto Python, aplique a migration `0011` e recalcule as categorias antes
+de habilitar a leitura. Configure `BADGES_ENABLED=true`, `BADGES_DB_URL`, `BADGES_DB_USER` e
+`BADGES_DB_PASSWORD`. No MySQL local do projeto Python, a URL para a API
+executada no host é `jdbc:mysql://localhost:3307/penelope_etl`. Com a
+integração desligada, todas as insígnias retornam `UNAVAILABLE/DISABLED`.
+Veja também `../penelope-data-intelligence/docs/fluxo-completo-insignia-educacao.md`.

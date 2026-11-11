@@ -9,6 +9,9 @@ import com.penelopec.penelopemobileapi.catalog.infrastructure.persistence.Spring
 import com.penelopec.penelopemobileapi.shared.core.exception.DomainError;
 import com.penelopec.penelopemobileapi.shared.core.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,23 +22,46 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class CatalogService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(CatalogService.class);
+
   private final SpringAdvertisementRepository advertisements;
+  private final EducationBadgeReader educationBadges;
+  private final HealthBadgeReader healthBadges;
 
   @Transactional(readOnly = true)
   public List<AdvertisementResponse> findAll(EstateType type, boolean active) {
     return advertisements.findCatalog(active, type).stream()
-      .map(this::toResponse)
+      .map(advertisement -> toResponse(advertisement, null, List.of()))
       .toList();
   }
 
   @Transactional(readOnly = true)
   public AdvertisementResponse findActiveById(Long id) {
-    return advertisements.findByIdAndActiveTrue(id)
-      .map(this::toResponse)
+    AdvertisementJpaEntity advertisement = advertisements.findByIdAndActiveTrue(id)
       .orElseThrow(() -> new NotFoundException(DomainError.of("CATALOG_404", "Anúncio não encontrado.")));
+    EducationBadgeResponse educationBadge;
+    try {
+      educationBadge = educationBadges.findByEstateId(advertisement.getEstate().getId()).orElse(null);
+    } catch (DataAccessException error) {
+      LOGGER.warn("Falha ao consultar a insígnia de educação da unidade {}", advertisement.getEstate().getId(), error);
+      educationBadge = EducationBadgeResponse.unavailable();
+    }
+    List<HealthBadgeResponse> healthBadgeResults;
+    try {
+      healthBadgeResults = healthBadges.findHealthByEstateId(advertisement.getEstate().getId());
+    } catch (DataAccessException error) {
+      LOGGER.warn("Falha ao consultar as insígnias de saúde da unidade {}", advertisement.getEstate().getId(), error);
+      healthBadgeResults = List.of(
+        HealthBadgeResponse.unavailable("HEALTH_PRIMARY_CARE"),
+        HealthBadgeResponse.unavailable("HEALTH_GENERAL_HOSPITAL")
+      );
+    }
+    return toResponse(advertisement, educationBadge, healthBadgeResults);
   }
 
-  private AdvertisementResponse toResponse(AdvertisementJpaEntity advertisement) {
+  private AdvertisementResponse toResponse(
+    AdvertisementJpaEntity advertisement, EducationBadgeResponse educationBadge,
+    List<HealthBadgeResponse> healthBadgeResults) {
     EstateJpaEntity estate = advertisement.getEstate();
     return new AdvertisementResponse(
       advertisement.getId(),
@@ -44,6 +70,7 @@ public class CatalogService {
       advertisement.isFeatured(),
       advertisement.getCreatedAt(),
       new AdvertisementResponse.EstateResponse(
+        estate.getId(),
         estate.getTitle(),
         estate.getDescription(),
         estate.getArea(),
@@ -53,11 +80,17 @@ public class CatalogService {
           estate.getAddress().getCity(),
           estate.getAddress().getRegion(),
           estate.getAddress().getState(),
+          estate.getAddress().getMunicipalityIbgeCode(),
           estate.getAddress().getLatitude(),
-          estate.getAddress().getLongitude()
+          estate.getAddress().getLongitude(),
+          estate.getAddress().getCoordinateSource(),
+          estate.getAddress().getCoordinatePrecision(),
+          estate.getAddress().getCoordinateUpdatedAt()
         ),
         toMediaResponses(estate.getMedia()),
-        toAmenityResponses(estate.getAmenities())
+        toAmenityResponses(estate.getAmenities()),
+        educationBadge,
+        healthBadgeResults
       )
     );
   }
