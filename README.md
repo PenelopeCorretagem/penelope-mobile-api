@@ -54,8 +54,11 @@ As duas rotas usam `Authorization: Bearer <token>`. Use a primeira para buscar
 `neighborhoods` com `key` e `name`. Passe a chave para a segunda rota. Por
 exemplo, `GET /api/v1/market-trends/neighborhoods/TATUAPE`. Ambas retornam
 `snapshot` com ID, versão da regra, intervalo e corte dos pagamentos. A API
-usa a regra `itbi-apartments-v1` e prioriza o histórico mais longo a partir
-do ano inicial mais antigo, com desempate pelo corte dos pagamentos e ID.
+prioriza a regra ampliada `itbi-apartments-v2` e aceita `itbi-apartments-v1`
+quando não há execução v2 com variação anual disponível. Dentro de cada regra,
+prioriza o ano inicial mais antigo, ano final mais recente, maior corte de
+pagamentos e maior ID. Os bairros são lidos da execução escolhida; o frontend
+deve preencher seu seletor a partir da lista retornada.
 
 A consulta de bairro retorna `neighborhood` e `years`, em ordem crescente
 por ano. Cada ano traz `sampleCount`, `medianPriceSqm` em reais por m²

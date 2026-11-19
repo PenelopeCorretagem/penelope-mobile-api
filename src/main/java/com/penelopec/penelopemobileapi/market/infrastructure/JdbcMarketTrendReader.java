@@ -12,7 +12,8 @@ import java.util.List;
 import java.util.Optional;
 
 public class JdbcMarketTrendReader implements AutoCloseable {
-  private static final String RULE_VERSION = "itbi-apartments-v1";
+  private static final String CURRENT_RULE_VERSION = "itbi-apartments-v2";
+  private static final String LEGACY_RULE_VERSION = "itbi-apartments-v1";
 
   private final HikariDataSource source;
   private final JdbcTemplate jdbc;
@@ -27,17 +28,18 @@ public class JdbcMarketTrendReader implements AutoCloseable {
     return jdbc.query("""
       SELECT r.id, r.rule_version, r.start_year, r.through_year, r.payment_cutoff
       FROM itbi_trend_run r
-      WHERE r.rule_version = ?
+      WHERE r.rule_version IN (?, ?)
         AND EXISTS (
           SELECT 1 FROM itbi_neighborhood_year n
           WHERE n.trend_run_id = r.id AND n.nominal_change_pct IS NOT NULL
         )
-      ORDER BY r.start_year ASC, r.through_year DESC, r.payment_cutoff DESC, r.id DESC
+      ORDER BY CASE WHEN r.rule_version = ? THEN 0 ELSE 1 END,
+               r.start_year ASC, r.through_year DESC, r.payment_cutoff DESC, r.id DESC
       LIMIT 1
       """, (row, index) -> new Snapshot(
       row.getLong("id"), row.getString("rule_version"), row.getInt("start_year"),
       row.getInt("through_year"), row.getString("payment_cutoff")
-    ), RULE_VERSION).stream().findFirst();
+    ), CURRENT_RULE_VERSION, LEGACY_RULE_VERSION, CURRENT_RULE_VERSION).stream().findFirst();
   }
 
   public List<Neighborhood> findNeighborhoods(Snapshot snapshot) {

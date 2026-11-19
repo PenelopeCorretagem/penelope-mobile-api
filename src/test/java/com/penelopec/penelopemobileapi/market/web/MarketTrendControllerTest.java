@@ -117,6 +117,38 @@ class MarketTrendControllerTest {
       .andExpect(jsonPath("$.code").value("MARKET_TRENDS_UNAVAILABLE"));
   }
 
+  @Test
+  void prefersExpandedNeighborhoodsAndSkipsRunsWithoutAnnualComparisons() throws Exception {
+    jdbc.update("""
+      INSERT INTO itbi_trend_run VALUES
+        (1, 'itbi-apartments-v1', 2010, 2025, '2026-09'),
+        (2, 'itbi-apartments-v2', 2010, 2025, '2026-09'),
+        (3, 'itbi-apartments-v2', 2010, 2025, '2026-09')
+      """);
+    jdbc.update("""
+      INSERT INTO itbi_neighborhood_year VALUES
+        (1, 'MOEMA', 'Moema', 2025, 30, 6000, 2024, 10, 'DISPONIVEL', 'DISPONIVEL'),
+        (2, 'VILA MADALENA', 'Vila Madalena', 2024, 40, 7000, 2023, NULL, 'DISPONIVEL', 'DADOS_INSUFICIENTES'),
+        (2, 'VILA MADALENA', 'Vila Madalena', 2025, 50, 7700, 2024, 10, 'DISPONIVEL', 'DISPONIVEL'),
+        (3, 'VILA MADALENA', 'Vila Madalena', 2025, 50, 7700, 2024, NULL, 'DISPONIVEL', 'DADOS_INSUFICIENTES')
+      """);
+
+    mvc.perform(get(URL))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.snapshot.id").value(2))
+      .andExpect(jsonPath("$.snapshot.ruleVersion").value("itbi-apartments-v2"))
+      .andExpect(jsonPath("$.neighborhoods[0].key").value("VILA MADALENA"));
+
+    mvc.perform(get(URL + "/{key}", "Vila Madalena"))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.years[1].nominalChangePct").value(10));
+
+    jdbc.update("DELETE FROM itbi_neighborhood_year WHERE trend_run_id = 2");
+    mvc.perform(get(URL))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.snapshot.ruleVersion").value("itbi-apartments-v1"));
+  }
+
   private static MockMvc mvc(StaticListableBeanFactory beans) {
     return MockMvcBuilders
       .standaloneSetup(new MarketTrendController(beans.getBeanProvider(JdbcMarketTrendReader.class)))
