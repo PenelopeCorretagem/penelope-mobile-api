@@ -1,0 +1,111 @@
+openapi: 3.0.3
+info:
+  title: Penelope — notas e insígnias
+  version: 1.1.0
+  description: >-
+    Contrato do endpoint de notas. O campo score da resposta é uma nota de 0 a 10,
+    derivada do score 0 a 100 do banco. A concessão é uma decisão independente.
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /v1/estates/{estateId}/badges:
+    get:
+      operationId: findEstateBadges
+      summary: Consulta as sete categorias de uma unidade anunciada
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: estateId
+          required: true
+          description: empreendimento.id, não o ID do anúncio.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: >-
+            Sete itens em ordem fixa, incluindo itens indisponíveis. Ausência de
+            dados produz nota nula. Falha de leitura ETL produz SOURCE_ERROR.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstateBadges'
+        '403':
+          description: Autenticação ausente ou inválida.
+        '404':
+          description: Não há anúncio ativo para esse empreendimento.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    EstateBadges:
+      type: object
+      required: [estateId, scaleMax, badges]
+      properties:
+        estateId:
+          type: integer
+          format: int64
+        scaleMax:
+          type: integer
+          enum: [10]
+        badges:
+          type: array
+          minItems: 7
+          maxItems: 7
+          description: Ordem definida pelo enum type abaixo.
+          items:
+            $ref: '#/components/schemas/Badge'
+    Badge:
+      type: object
+      required: [type, label, score, granted, status, reason, explanation, evidence]
+      properties:
+        type:
+          type: string
+          enum:
+            - EDUCATION
+            - HEALTH_PRIMARY_CARE
+            - HEALTH_GENERAL_HOSPITAL
+            - GREEN_PARK_NEARBY
+            - TRANSPORT_BUS_NEARBY
+            - TRANSPORT_RAIL_NEARBY
+            - SAFETY_OCCURRENCES
+        label:
+          type: string
+        score:
+          type: number
+          minimum: 0
+          maximum: 10
+          nullable: true
+          description: >-
+            round(score bruto / 10, 1), arredondamento HALF_UP. Exemplo 79 -> 7.9.
+            Resultado binário legado ainda sem nota preserva granted e informa SCORE_PENDING.
+        granted:
+          type: boolean
+          description: >-
+            Preserva a regra de concessão da categoria. Não deve ser deduzido da nota.
+        status:
+          type: string
+          enum: [CALCULATED, UNAVAILABLE]
+        reason:
+          type: string
+          nullable: true
+          description: >-
+            null quando calculado com nota. SCORE_PENDING para binário calculado
+            sem nota; ou motivo de indisponibilidade, como NO_COORDINATES,
+            LOW_PRECISION, OUT_OF_COVERAGE, NOT_CALCULATED, SOURCE_ERROR,
+            DISABLED, INCOMPLETE_PERIOD, LOW_SOURCE_COVERAGE ou NO_GEOLOCATED_SOURCE.
+        explanation:
+          type: string
+        evidence:
+          type: object
+          additionalProperties: true
+          description: >-
+            Pode incluir rawScore (0–100), source, sourceRunId, sourceLoadedAt,
+            calculatedAt, ruleVersion, radiusMeters, distanceMethod e medidas
+            específicas. Segurança inclui anos de referência, historicalOnly e
+            sourceQuality. calculatedAt é data do cálculo, não data dos dados.

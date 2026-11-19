@@ -24,4 +24,6 @@ public interface SpringAdvertisementRepository extends JpaRepository<Advertiseme
   Optional<AdvertisementJpaEntity> findByIdAndActiveTrue(Long id);
 
   boolean existsByIdAndActiveTrue(Long id);
+
+  boolean existsByEstateIdAndActiveTrue(Long estateId);
 }
